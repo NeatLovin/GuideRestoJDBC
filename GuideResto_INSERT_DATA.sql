@@ -1,24 +1,24 @@
 INSERT INTO TYPES_GASTRONOMIQUES(libelle, description) VALUES ('Cuisine suisse', 'Cuisine classique et plats typiquement suisses');
 INSERT INTO TYPES_GASTRONOMIQUES(libelle, description) VALUES ('Restaurant gastronomique', 'Restaurant gastronomique de haut standing');
-INSERT INTO TYPES_GASTRONOMIQUES(libelle, description) VALUES ('Pizzeria', 'Pizzas et autres spécialités italiennes');
+INSERT INTO TYPES_GASTRONOMIQUES(libelle, description) VALUES ('Pizzeria', 'Pizzas et autres spÃ©cialitÃ©s italiennes');
 COMMIT;
 
-INSERT INTO CRITERES_EVALUATION(nom, description) VALUES ('Service', 'Qualité du service');
-INSERT INTO CRITERES_EVALUATION(nom, description) VALUES ('Cuisine', 'Qualité de la nourriture');
-INSERT INTO CRITERES_EVALUATION(nom, description) VALUES ('Cadre', 'L''ambiance et la décoration sont-elles bonnes ?');
+INSERT INTO CRITERES_EVALUATION(nom, description) VALUES ('Service', 'Qualitï¿½ du service');
+INSERT INTO CRITERES_EVALUATION(nom, description) VALUES ('Cuisine', 'Qualitï¿½ de la nourriture');
+INSERT INTO CRITERES_EVALUATION(nom, description) VALUES ('Cadre', 'L''ambiance et la dï¿½coration sont-elles bonnes ?');
 COMMIT;
 
-INSERT INTO VILLES(code_postal, nom_ville) VALUES ('2000', 'Neuchâtel');
+INSERT INTO VILLES(code_postal, nom_ville) VALUES ('2000', 'Neuchï¿½tel');
 COMMIT;
 
-INSERT INTO RESTAURANTS(nom, adresse, description, site_web, fk_type, fk_vill) VALUES ('Fleur-de-Lys', 'Rue du Bassin 10', 'Pizzeria au centre de Neuchâtel', 'http://www.pizzeria-neuchatel.ch', 3, 1);
-INSERT INTO RESTAURANTS(nom, adresse, description, site_web, fk_type, fk_vill) VALUES ('La Maison du Prussien', 'Rue des Tunnels 11', 'Restaurant gastronomique renommé de Neuchâtel', 'www.hotel-prussien.ch', 2, 1);
+INSERT INTO RESTAURANTS(nom, adresse, description, site_web, fk_type, fk_vill) VALUES ('Fleur-de-Lys', 'Rue du Bassin 10', 'Pizzeria au centre de Neuchï¿½tel', 'http://www.pizzeria-neuchatel.ch', 3, 1);
+INSERT INTO RESTAURANTS(nom, adresse, description, site_web, fk_type, fk_vill) VALUES ('La Maison du Prussien', 'Rue des Tunnels 11', 'Restaurant gastronomique renommï¿½ de Neuchï¿½tel', 'www.hotel-prussien.ch', 2, 1);
 COMMIT;
 
-INSERT INTO COMMENTAIRES(date_eval, commentaire, nom_utilisateur, fk_rest) VALUES (sysdate, 'Génial !', 'Toto', 1);
-INSERT INTO COMMENTAIRES(date_eval, commentaire, nom_utilisateur, fk_rest) VALUES (sysdate, 'Très bon', 'Titi', 1);
-INSERT INTO COMMENTAIRES(date_eval, commentaire, nom_utilisateur, fk_rest) VALUES (sysdate, 'Un régal !', 'Dupont', 2);
-INSERT INTO COMMENTAIRES(date_eval, commentaire, nom_utilisateur, fk_rest) VALUES (sysdate, 'Rien à dire, le top !', 'Dupasquier', 2);
+INSERT INTO COMMENTAIRES(date_eval, commentaire, nom_utilisateur, fk_rest) VALUES (sysdate, 'Gï¿½nial !', 'Toto', 1);
+INSERT INTO COMMENTAIRES(date_eval, commentaire, nom_utilisateur, fk_rest) VALUES (sysdate, 'Trï¿½s bon', 'Titi', 1);
+INSERT INTO COMMENTAIRES(date_eval, commentaire, nom_utilisateur, fk_rest) VALUES (sysdate, 'Un rï¿½gal !', 'Dupont', 2);
+INSERT INTO COMMENTAIRES(date_eval, commentaire, nom_utilisateur, fk_rest) VALUES (sysdate, 'Rien ï¿½ dire, le top !', 'Dupasquier', 2);
 COMMIT;
 
 INSERT INTO NOTES(note, fk_comm, fk_crit) VALUES (4, 1, 1);
