@@ -8,6 +8,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashSet;
 import java.util.Set;
 
 import static ch.hearc.ig.guideresto.persistence.ConnectionUtils.getConnection;
@@ -70,8 +71,31 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
 
     @Override
     public Set<Restaurant> findAll() {
-        return Set.of();
+        Set<Restaurant> restaurants = new HashSet<>();
+
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(SELECT_ALL)) {
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    int id = resultSet.getInt("numero");
+
+                    // Vérifier le cache d'abord
+                    Restaurant restaurant = cache.get(id);
+                    if (restaurant == null) {
+                        restaurant = mapResultSetToObject(resultSet, id);
+                        cache.put(id, restaurant);
+                    }
+                    restaurants.add(restaurant);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return restaurants;
     }
+
 
     @Override
     public Restaurant create(Restaurant object) {
