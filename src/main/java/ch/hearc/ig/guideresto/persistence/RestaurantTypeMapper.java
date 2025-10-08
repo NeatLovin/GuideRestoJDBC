@@ -79,8 +79,41 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
 
     @Override
     public RestaurantType create(RestaurantType object) {
+        if (object == null) {
+            return null;
+        }
+
+        Connection connection = ConnectionUtils.getConnection();
+        try (PreparedStatement stmt = connection.prepareStatement(INSERT)) {
+            stmt.setString(1, object.getLabel());
+            stmt.setString(2, object.getDescription());
+
+            int affected = stmt.executeUpdate();
+            // Récupérer l'id généré par la séquence
+            Integer id = getSequenceValue();
+            if (id != null && id > 0) {
+                object.setId(id);
+                addToCache(object);
+            }
+
+            try {
+                connection.commit();
+            } catch (SQLException ex) {
+                logger.error("Commit failed: {}", ex.getMessage());
+            }
+
+            return object;
+        } catch (SQLException ex) {
+            logger.error("SQLException: {}", ex.getMessage());
+            try {
+                connection.rollback();
+            } catch (SQLException e) {
+                logger.error("Rollback failed: {}", e.getMessage());
+            }
+        }
         return null;
     }
+
 
     @Override
     public boolean update(RestaurantType object) {
