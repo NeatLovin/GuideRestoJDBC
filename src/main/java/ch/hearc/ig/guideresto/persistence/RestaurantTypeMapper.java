@@ -1,10 +1,16 @@
 package ch.hearc.ig.guideresto.persistence;
 
 import ch.hearc.ig.guideresto.business.Restaurant;
+import ch.hearc.ig.guideresto.business.RestaurantType;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
-public class RestaurantTypeMapper extends AbstractMapper<Restaurant> {
+public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
     private static final String SELECT_BY_ID = "SELECT numero, libelle, description FROM TYPES_GASTRONOMIQUES WHERE numero = ?";
     private static final String SELECT_ALL = "SELECT numero, libelle, description FROM TYPES_GASTRONOMIQUES ORDER BY libelle";
     private static final String INSERT = "INSERT INTO TYPES_GASTRONOMIQUES (libelle, description) VALUES (?, ?)";
@@ -15,28 +21,74 @@ public class RestaurantTypeMapper extends AbstractMapper<Restaurant> {
     private static final String COUNT_QUERY = "SELECT COUNT(*) FROM TYPES_GASTRONOMIQUES";
     private static final String SEQUENCE_QUERY = "SELECT SEQ_TYPES_GASTRONOMIQUES.CURRVAL FROM DUAL";
 
+
     @Override
-    public Restaurant findById(int id) {
+    public RestaurantType findById(int id) {
+        // Vérifier dans le cache
+        if (cache.containsKey(id)) {
+            return cache.get(id);
+        }
+
+        Connection connection = ConnectionUtils.getConnection();
+        try (PreparedStatement stmt = connection.prepareStatement(SELECT_BY_ID)) {
+            stmt.setInt(1, id);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    RestaurantType type = mapRow(rs);
+                    addToCache(type);
+                    return type;
+                }
+            }
+        } catch (SQLException ex) {
+            logger.error("SQLException: {}", ex.getMessage());
+        }
+        return null;
+    }
+
+
+    @Override
+    public Set<RestaurantType> findAll() {
+        // Retourner cache si rempli
+        if (!isCacheEmpty()) {
+            return new LinkedHashSet<>(cache.values());
+        }
+
+        Set<RestaurantType> result = new LinkedHashSet<>();
+        Connection connection = ConnectionUtils.getConnection();
+        try (PreparedStatement stmt = connection.prepareStatement(SELECT_ALL);
+             ResultSet rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                RestaurantType type = mapRow(rs);
+                result.add(type);
+                addToCache(type);
+            }
+        } catch (SQLException ex) {
+            logger.error("SQLException: {}", ex.getMessage());
+        }
+        return result;
+    }
+
+    private RestaurantType mapRow(ResultSet rs) throws SQLException {
+        Integer id = rs.getInt("numero");
+        String libelle = rs.getString("libelle");
+        String description = rs.getString("description");
+
+        return new RestaurantType(id, libelle, description);
+    }
+
+    @Override
+    public RestaurantType create(RestaurantType object) {
         return null;
     }
 
     @Override
-    public Set<Restaurant> findAll() {
-        return Set.of();
-    }
-
-    @Override
-    public Restaurant create(Restaurant object) {
-        return null;
-    }
-
-    @Override
-    public boolean update(Restaurant object) {
+    public boolean update(RestaurantType object) {
         return false;
     }
 
     @Override
-    public boolean delete(Restaurant object) {
+    public boolean delete(RestaurantType object) {
         return false;
     }
 
