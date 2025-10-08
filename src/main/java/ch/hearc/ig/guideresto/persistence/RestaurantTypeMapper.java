@@ -114,21 +114,76 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
         return null;
     }
 
-
     @Override
     public boolean update(RestaurantType object) {
+        if (object == null || object.getId() == null) {
+            return false;
+        }
+
+        Connection connection = ConnectionUtils.getConnection();
+        try (PreparedStatement stmt = connection.prepareStatement(UPDATE)) {
+            stmt.setString(1, object.getLabel());
+            stmt.setString(2, object.getDescription());
+            stmt.setInt(3, object.getId());
+
+            int affected = stmt.executeUpdate();
+            try {
+                connection.commit();
+            } catch (SQLException ex) {
+                logger.error("Commit failed: {}", ex.getMessage());
+            }
+
+            if (affected > 0) {
+                addToCache(object);
+                return true;
+            }
+        } catch (SQLException ex) {
+            logger.error("SQLException: {}", ex.getMessage());
+            try {
+                connection.rollback();
+            } catch (SQLException e) {
+                logger.error("Rollback failed: {}", e.getMessage());
+            }
+        }
         return false;
     }
 
     @Override
     public boolean delete(RestaurantType object) {
-        return false;
+        if (object == null || object.getId() == null) {
+            return false;
+        }
+        return deleteById(object.getId());
     }
 
     @Override
     public boolean deleteById(int id) {
+        Connection connection = ConnectionUtils.getConnection();
+        try (PreparedStatement stmt = connection.prepareStatement(DELETE)) {
+            stmt.setInt(1, id);
+
+            int affected = stmt.executeUpdate();
+            try {
+                connection.commit();
+            } catch (SQLException ex) {
+                logger.error("Commit failed: {}", ex.getMessage());
+            }
+
+            if (affected > 0) {
+                removeFromCache(id);
+                return true;
+            }
+        } catch (SQLException ex) {
+            logger.error("SQLException: {}", ex.getMessage());
+            try {
+                connection.rollback();
+            } catch (SQLException e) {
+                logger.error("Rollback failed: {}", e.getMessage());
+            }
+        }
         return false;
     }
+
 
     @Override
     protected String getSequenceQuery() {
