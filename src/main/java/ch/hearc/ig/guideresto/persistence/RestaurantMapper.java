@@ -1,5 +1,6 @@
 package ch.hearc.ig.guideresto.persistence;
 
+import ch.hearc.ig.guideresto.business.Localisation;
 import ch.hearc.ig.guideresto.business.Restaurant;
 import ch.hearc.ig.guideresto.business.City;
 import ch.hearc.ig.guideresto.business.RestaurantType;
@@ -41,7 +42,7 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
-                    Restaurant restaurant = mapResultSetToObject(resultSet, id);
+                    Restaurant restaurant = mapResultSetToRestaurant(resultSet);
                     cache.put(id, restaurant);
                     return restaurant;
                 }
@@ -54,19 +55,27 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
         return null;
     }
 
-    private Restaurant mapResultSetToObject(ResultSet resultSet, int id) throws SQLException {
-        int cityId = resultSet.getInt("fk_vill");
-        int typeId = resultSet.getInt("fk_type");
-        String name = resultSet.getString("nom");
-        String address = resultSet.getString("adresse");
-        String description = resultSet.getString("description");
-        String website = resultSet.getString("site_web");
+    private Restaurant mapResultSetToRestaurant(ResultSet rs) throws SQLException {
+        // Récupérer la ville
+        City city = cityMapper.findById(rs.getInt("fk_vill"));
 
-        // Récupérer les objets associés
-        City city = cityMapper.findById(cityId);
-        RestaurantType type = typeMapper.findById(typeId);
+        // Récupérer le type
+        RestaurantType type = typeMapper.findById(rs.getInt("fk_type"));
 
-        return new Restaurant(id, name, address, description, website, city, type);
+        // Créer la localisation
+        Localisation address = new Localisation(rs.getString("adresse"), city);
+
+        // Créer le restaurant
+        Restaurant restaurant = new Restaurant(
+                rs.getInt("numero"),
+                rs.getString("nom"),
+                rs.getString("description"),
+                rs.getString("site_web"),
+                address,
+                type
+        );
+
+        return restaurant;
     }
 
     @Override
@@ -83,7 +92,7 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
                     // Vérifier le cache d'abord
                     Restaurant restaurant = cache.get(id);
                     if (restaurant == null) {
-                        restaurant = mapResultSetToObject(resultSet, id);
+                        restaurant = mapResultSetToRestaurant(resultSet);
                         cache.put(id, restaurant);
                     }
                     restaurants.add(restaurant);
@@ -236,5 +245,69 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
     @Override
     protected String getCountQuery() {
         return COUNT_QUERY;
+    }
+    public Set<Restaurant> findByName(String name) {
+        Set<Restaurant> restaurants = new HashSet<>();
+        Connection conn = ConnectionUtils.getConnection();
+        String sql = "SELECT r.numero, r.nom, r.adresse, r.description, r.site_web, " +
+                "r.fk_type, r.fk_vill " +
+                "FROM RESTAURANTS r WHERE UPPER(r.nom) LIKE UPPER(?) ORDER BY r.nom";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, "%" + name + "%");
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    restaurants.add(mapResultSetToRestaurant(rs));
+                }
+            }
+        } catch (SQLException ex) {
+            logger.error("Erreur lors de la recherche de restaurants par nom: {}", ex.getMessage());
+        }
+        return restaurants;
+    }
+
+    public Set<Restaurant> findByCityName(String cityName) {
+        Set<Restaurant> restaurants = new HashSet<>();
+        Connection conn = ConnectionUtils.getConnection();
+        String sql = "SELECT r.numero, r.nom, r.adresse, r.description, r.site_web, " +
+                "r.fk_type, r.fk_vill " +
+                "FROM RESTAURANTS r " +
+                "INNER JOIN VILLES v ON r.fk_vill = v.numero " +
+                "WHERE UPPER(v.nom_ville) LIKE UPPER(?) ORDER BY r.nom";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, "%" + cityName + "%");
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    restaurants.add(mapResultSetToRestaurant(rs));
+                }
+            }
+        } catch (SQLException ex) {
+            logger.error("Erreur lors de la recherche de restaurants par ville: {}", ex.getMessage());
+        }
+        return restaurants;
+    }
+
+    public Set<Restaurant> findByType(int typeId) {
+        Set<Restaurant> restaurants = new HashSet<>();
+        Connection conn = ConnectionUtils.getConnection();
+        String sql = "SELECT r.numero, r.nom, r.adresse, r.description, r.site_web, " +
+                "r.fk_type, r.fk_vill " +
+                "FROM RESTAURANTS r WHERE r.fk_type = ? ORDER BY r.nom";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, typeId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    restaurants.add(mapResultSetToRestaurant(rs));
+                }
+            }
+        } catch (SQLException ex) {
+            logger.error("Erreur lors de la recherche de restaurants par type: {}", ex.getMessage());
+        }
+        return restaurants;
     }
 }
