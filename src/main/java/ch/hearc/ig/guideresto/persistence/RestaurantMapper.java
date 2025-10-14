@@ -135,7 +135,35 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
     }
 
     @Override
-    public boolean update(Restaurant object) {
+    public boolean update(Restaurant restaurant) {
+        Connection conn = ConnectionUtils.getConnection();
+        String sql = "UPDATE RESTAURANTS SET nom = ?, adresse = ?, description = ?, " +
+                "site_web = ?, fk_type = ?, fk_vill = ? WHERE numero = ?";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, restaurant.getName());
+            stmt.setString(2, restaurant.getAddress().getStreet());
+            stmt.setString(3, restaurant.getDescription());
+            stmt.setString(4, restaurant.getWebsite());
+            stmt.setInt(5, restaurant.getType().getId());
+            stmt.setInt(6, restaurant.getAddress().getCity().getId());
+            stmt.setInt(7, restaurant.getId());
+
+            int affectedRows = stmt.executeUpdate();
+            conn.commit();
+
+            if (affectedRows > 0) {
+                logger.info("Restaurant mis à jour: {}", restaurant.getId());
+                return true;
+            }
+        } catch (SQLException ex) {
+            logger.error("Erreur lors de la mise à jour du restaurant: {}", ex.getMessage());
+            try {
+                conn.rollback();
+            } catch (SQLException e) {
+                logger.error("Erreur lors du rollback: {}", e.getMessage());
+            }
+        }
         return false;
     }
 
