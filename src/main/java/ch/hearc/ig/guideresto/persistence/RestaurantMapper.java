@@ -168,12 +168,58 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
     }
 
     @Override
-    public boolean delete(Restaurant object) {
-        return false;
+    public boolean delete(Restaurant restaurant) {
+        return deleteById(restaurant.getId());
     }
 
     @Override
     public boolean deleteById(int id) {
+        Connection conn = ConnectionUtils.getConnection();
+
+        try {
+            // Supprimer d'abord les notes liées aux commentaires
+            String sqlNotes = "DELETE FROM NOTES WHERE fk_comm IN " +
+                    "(SELECT numero FROM COMMENTAIRES WHERE fk_rest = ?)";
+            try (PreparedStatement stmtNotes = conn.prepareStatement(sqlNotes)) {
+                stmtNotes.setInt(1, id);
+                stmtNotes.executeUpdate();
+            }
+
+            // Supprimer les commentaires
+            String sqlComments = "DELETE FROM COMMENTAIRES WHERE fk_rest = ?";
+            try (PreparedStatement stmtComments = conn.prepareStatement(sqlComments)) {
+                stmtComments.setInt(1, id);
+                stmtComments.executeUpdate();
+            }
+
+            // Supprimer les likes
+            String sqlLikes = "DELETE FROM LIKES WHERE fk_rest = ?";
+            try (PreparedStatement stmtLikes = conn.prepareStatement(sqlLikes)) {
+                stmtLikes.setInt(1, id);
+                stmtLikes.executeUpdate();
+            }
+
+            // Supprimer le restaurant
+            String sqlRestaurant = "DELETE FROM RESTAURANTS WHERE numero = ?";
+            try (PreparedStatement stmtRestaurant = conn.prepareStatement(sqlRestaurant)) {
+                stmtRestaurant.setInt(1, id);
+                int affectedRows = stmtRestaurant.executeUpdate();
+
+                conn.commit();
+
+                if (affectedRows > 0) {
+                    logger.info("Restaurant supprimé: {}", id);
+                    return true;
+                }
+            }
+        } catch (SQLException ex) {
+            logger.error("Erreur lors de la suppression du restaurant: {}", ex.getMessage());
+            try {
+                conn.rollback();
+            } catch (SQLException e) {
+                logger.error("Erreur lors du rollback: {}", e.getMessage());
+            }
+        }
         return false;
     }
 
