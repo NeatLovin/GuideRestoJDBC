@@ -98,7 +98,39 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
 
 
     @Override
-    public Restaurant create(Restaurant object) {
+    public Restaurant create(Restaurant restaurant) {
+        Connection conn = ConnectionUtils.getConnection();
+        String sql = "INSERT INTO RESTAURANTS (nom, adresse, description, site_web, fk_type, fk_vill) " +
+                "VALUES (?, ?, ?, ?, ?, ?)";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql, new String[]{"numero"})) {
+            stmt.setString(1, restaurant.getName());
+            stmt.setString(2, restaurant.getAddress().getStreet());
+            stmt.setString(3, restaurant.getDescription());
+            stmt.setString(4, restaurant.getWebsite());
+            stmt.setInt(5, restaurant.getType().getId());
+            stmt.setInt(6, restaurant.getAddress().getCity().getId());
+
+            int affectedRows = stmt.executeUpdate();
+
+            if (affectedRows > 0) {
+                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        restaurant.setId(generatedKeys.getInt(1));
+                        conn.commit();
+                        logger.info("Restaurant créé avec l'ID: {}", restaurant.getId());
+                        return restaurant;
+                    }
+                }
+            }
+        } catch (SQLException ex) {
+            logger.error("Erreur lors de la création du restaurant: {}", ex.getMessage());
+            try {
+                conn.rollback();
+            } catch (SQLException e) {
+                logger.error("Erreur lors du rollback: {}", e.getMessage());
+            }
+        }
         return null;
     }
 
