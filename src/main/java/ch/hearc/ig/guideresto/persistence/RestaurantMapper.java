@@ -1,16 +1,12 @@
 package ch.hearc.ig.guideresto.persistence;
 
-import ch.hearc.ig.guideresto.business.Localisation;
-import ch.hearc.ig.guideresto.business.Restaurant;
-import ch.hearc.ig.guideresto.business.City;
-import ch.hearc.ig.guideresto.business.RestaurantType;
+import ch.hearc.ig.guideresto.business.*;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 import static ch.hearc.ig.guideresto.persistence.ConnectionUtils.getConnection;
 
@@ -43,6 +39,9 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
                     Restaurant restaurant = mapResultSetToRestaurant(resultSet);
+                    restaurant.getEvaluations().clear();
+                    loadEvaluations(restaurant);
+                    loadCompleteEvaluations(restaurant);
                     cache.put(id, restaurant);
                     return restaurant;
                 }
@@ -80,30 +79,45 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
 
     @Override
     public Set<Restaurant> findAll() {
-        Set<Restaurant> restaurants = new HashSet<>();
+        Set<Restaurant> restaurants = new LinkedHashSet<>();
+        String sql = "SELECT r.NUMERO, r.NOM, r.ADRESSE, r.DESCRIPTION, r.SITE_WEB, " +
+                "r.FK_TYPE, r.FK_VILL, " +
+                "t.NUMERO AS TYPE_ID, t.LIBELLE AS TYPE_LABEL, t.DESCRIPTION AS TYPE_DESC, " +
+                "v.NUMERO AS VILLE_ID, v.CODE_POSTAL, v.NOM_VILLE " +
+                "FROM RESTAURANTS r " +
+                "INNER JOIN TYPES_GASTRONOMIQUES t ON r.FK_TYPE = t.NUMERO " +
+                "INNER JOIN VILLES v ON r.FK_VILL = v.NUMERO";
 
-        try (Connection connection = getConnection();
-             PreparedStatement statement = connection.prepareStatement(SELECT_ALL)) {
+        try (Connection connection = ConnectionUtils.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
 
-            try (ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    int id = resultSet.getInt("numero");
-
-                    // Vérifier le cache d'abord
-                    Restaurant restaurant = cache.get(id);
-                    if (restaurant == null) {
-                        restaurant = mapResultSetToRestaurant(resultSet);
-                        cache.put(id, restaurant);
-                    }
+            while (rs.next()) {
+                int id = rs.getInt("NUMERO");
+                if (!cache.containsKey(id)) {
+                    Restaurant restaurant = mapResultSetToRestaurant(rs);
+                    cache.put(id, restaurant);
                     restaurants.add(restaurant);
+                } else {
+                    restaurants.add(cache.get(id));
                 }
             }
+
+            // Charger les évaluations pour chaque restaurant
+            for (Restaurant restaurant : restaurants) {
+                restaurant.getEvaluations().clear();
+                loadEvaluations(restaurant);           // Likes/Dislikes
+                loadCompleteEvaluations(restaurant);   // Commentaires et notes
+            }
+
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Erreur lors de la récupération de tous les restaurants : {}", e.getMessage());
         }
 
         return restaurants;
     }
+
+
 
 
     @Override
@@ -162,6 +176,7 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             conn.commit();
 
             if (affectedRows > 0) {
+                cache.put(restaurant.getId(), restaurant);
                 logger.info("Restaurant mis à jour: {}", restaurant.getId());
                 return true;
             }
@@ -217,6 +232,7 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
                 conn.commit();
 
                 if (affectedRows > 0) {
+                    cache.remove(id);
                     logger.info("Restaurant supprimé: {}", id);
                     return true;
                 }
@@ -310,4 +326,102 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
         }
         return restaurants;
     }
+
+    private void loadEvaluations(Restaurant restaurant) {
+        String sql = "SELECT NUMERO, APPRECIATION, DATE_EVAL, ADRESSE_IP FROM LIKES WHERE FK_REST = ?";
+
+        try (Connection connection = ConnectionUtils.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setInt(1, restaurant.getId());
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String appreciation = rs.getString("APPRECIATION");
+                    Date dateEval = rs.getDate("DATE_EVAL");
+                    String ipAddress = rs.getString("ADRESSE_IP");
+                    Integer numero = rs.getInt("NUMERO");
+
+                    // 'T' = True = Like, 'F' = False = Dislike
+                    boolean isLike = "T".equalsIgnoreCase(appreciation);
+
+                    BasicEvaluation evaluation = new BasicEvaluation(
+                            numero,
+                            dateEval,
+                            restaurant,
+                            isLike,
+                            ipAddress
+                    );
+
+                    restaurant.getEvaluations().add(evaluation);
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Erreur lors du chargement des évaluations pour le restaurant {} : {}",
+                    restaurant.getId(), e.getMessage());
+        }
+    }
+
+    private void loadCompleteEvaluations(Restaurant restaurant) {
+        String sql = "SELECT c.NUMERO, c.DATE_EVAL, c.COMMENTAIRE, c.NOM_UTILISATEUR, " +
+                "n.NUMERO AS NOTE_ID, n.NOTE, " +
+                "cr.NUMERO AS CRIT_ID, cr.NOM AS CRIT_NOM, cr.DESCRIPTION AS CRIT_DESC " +
+                "FROM COMMENTAIRES c " +
+                "LEFT JOIN NOTES n ON c.NUMERO = n.FK_COMM " +
+                "LEFT JOIN CRITERES_EVALUATION cr ON n.FK_CRIT = cr.NUMERO " +
+                "WHERE c.FK_REST = ? " +
+                "ORDER BY c.NUMERO";
+
+        try (Connection connection = ConnectionUtils.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setInt(1, restaurant.getId());
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                Map<Integer, CompleteEvaluation> evaluationsMap = new HashMap<>();
+
+                while (rs.next()) {
+                    Integer evalId = rs.getInt("NUMERO");
+
+                    if (!evaluationsMap.containsKey(evalId)) {
+                        CompleteEvaluation evaluation = new CompleteEvaluation(
+                                evalId,
+                                rs.getDate("DATE_EVAL"),
+                                restaurant,
+                                rs.getString("COMMENTAIRE"),
+                                rs.getString("NOM_UTILISATEUR")
+                        );
+                        evaluationsMap.put(evalId, evaluation);
+                        restaurant.getEvaluations().add(evaluation);
+                    }
+
+                    Integer noteId = rs.getInt("NOTE_ID");
+                    if (!rs.wasNull()) {
+                        CompleteEvaluation evaluation = evaluationsMap.get(evalId);
+                        EvaluationCriteria criteria = new EvaluationCriteria(
+                                rs.getInt("CRIT_ID"),
+                                rs.getString("CRIT_NOM"),
+                                rs.getString("CRIT_DESC")
+                        );
+                        Grade grade = new Grade(
+                                noteId,
+                                rs.getInt("NOTE"),
+                                evaluation,
+                                criteria
+                        );
+                        evaluation.getGrades().add(grade);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Erreur lors du chargement des évaluations complètes : {}", e.getMessage());
+        }
+    }
+
+
+
+
+
+
+
 }
