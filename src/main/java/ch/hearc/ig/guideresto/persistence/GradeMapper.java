@@ -78,15 +78,18 @@ public class GradeMapper extends AbstractMapper<Grade> {
 
     @Override
     public Grade create(Grade object) {
+        Connection connection = ConnectionUtils.getConnection();
+        return createWithConnection(object, connection, true);
+    }
+    
+    public Grade createWithConnection(Grade object, Connection connection, boolean doCommit) {
         if (object == null) {
             return null;
         }
-        // Validation simple côté Java (note non nulle)
         if (object.getGrade() == null) {
             logger.error("Grade.create: 'note' cannot be null");
             return null;
         }
-        // Récupération des IDs pour les FK
         Integer evalId = object.getEvaluation() != null ? object.getEvaluation().getId() : null;
         Integer critId = object.getCriteria() != null ? object.getCriteria().getId() : null;
         if (evalId == null || critId == null) {
@@ -94,7 +97,6 @@ public class GradeMapper extends AbstractMapper<Grade> {
             return null;
         }
 
-        Connection connection = ConnectionUtils.getConnection();
         try (PreparedStatement stmt = connection.prepareStatement(INSERT)) {
             stmt.setInt(1, object.getGrade());
             stmt.setInt(2, evalId);
@@ -106,7 +108,9 @@ public class GradeMapper extends AbstractMapper<Grade> {
                 object.setId(id);
                 addToCache(object);
             }
-            try { connection.commit(); } catch (SQLException ex) { logger.error("Commit failed: {}", ex.getMessage()); }
+            if (doCommit) {
+                try { connection.commit(); } catch (SQLException ex) { logger.error("Commit failed: {}", ex.getMessage()); }
+            }
             return object;
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
