@@ -33,8 +33,8 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation> {
     public BasicEvaluation findById(int id) {
         BasicEvaluation cached = findInCache(id);
         if (cached != null) return cached;
-        try (Connection connection = ConnectionUtils.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(SELECT_BY_ID)) {
+        Connection connection = ConnectionUtils.getConnection();
+        try (PreparedStatement stmt = connection.prepareStatement(SELECT_BY_ID)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -58,8 +58,8 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation> {
             return new LinkedHashSet<>(cache.values());
         }
         Set<BasicEvaluation> res = new LinkedHashSet<>();
-        try (Connection connection = ConnectionUtils.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(SELECT_ALL);
+        Connection connection = ConnectionUtils.getConnection();
+        try (PreparedStatement stmt = connection.prepareStatement(SELECT_ALL);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 BasicEvaluation be = mapRow(rs);
@@ -147,8 +147,8 @@ public class BasicEvaluationMapper extends AbstractMapper<BasicEvaluation> {
     public Set<BasicEvaluation> findByRestaurantId(int restaurantId) {
         Set<BasicEvaluation> res = new LinkedHashSet<>();
         String sql = "SELECT numero, appreciation, date_eval, adresse_ip, fk_rest FROM LIKES WHERE fk_rest = ? ORDER BY numero";
-        try (Connection connection = ConnectionUtils.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
+        Connection connection = ConnectionUtils.getConnection();
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, restaurantId);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
