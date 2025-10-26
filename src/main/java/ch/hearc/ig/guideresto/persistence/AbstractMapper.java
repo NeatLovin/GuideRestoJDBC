@@ -16,7 +16,7 @@ public abstract class AbstractMapper<T extends IBusinessObject> {
 
     protected static final Logger logger = LogManager.getLogger();
 
-    // Cache simple en mémoire pour mapper les objets par id
+    // Cache simple en mémoire pour mapper les objets par id (scope: instance)
     protected final Map<Integer, T> cache = new HashMap<>();
 
     public abstract T findById(int id);
@@ -36,6 +36,16 @@ public abstract class AbstractMapper<T extends IBusinessObject> {
     @SuppressWarnings("unchecked")
     protected Map<Integer, T> identityMap() {
         return (Map<Integer, T>) IdentityMapContext.current().mapFor(this.getClass());
+    }
+
+    /**
+     * Utilitaire: tente de retrouver l'objet dans l'Identity Map ou le cache local.
+     * Retourne null si absent.
+     */
+    protected T findInCache(int id) {
+        T obj = identityMap().get(id);
+        if (obj != null) return obj;
+        return cache.get(id);
     }
 
     /**
@@ -116,7 +126,7 @@ public abstract class AbstractMapper<T extends IBusinessObject> {
     }
 
     /**
-     * Ajoute un objet au cache et à l'identity map
+     * Ajoute un objet au cache et à l'identity map (garantit une seule instance par id)
      * @param objet l'objet à ajouter
      */
     protected void addToCache(T objet) {
