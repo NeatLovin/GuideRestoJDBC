@@ -58,6 +58,8 @@ public class Application {
      * @param choice Un nombre entre 0 et 5.
      */
     private static void proceedMainMenu(int choice) {
+        // Nouveau scope d'Identity Map pour chaque action utilisateur
+        IdentityMapContext.clear();
         switch (choice) {
             case 1:
                 showRestaurantsList();
