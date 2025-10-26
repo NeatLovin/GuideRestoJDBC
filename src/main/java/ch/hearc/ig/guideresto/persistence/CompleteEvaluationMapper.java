@@ -35,13 +35,8 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
 
     @Override
     public CompleteEvaluation findById(int id) {
-        // Identity Map d'abord
-        if (identityMap().containsKey(id)) {
-            return identityMap().get(id);
-        }
-        if (cache.containsKey(id)) {
-            return cache.get(id);
-        }
+        CompleteEvaluation cached = findInCache(id);
+        if (cached != null) return cached;
         Connection conn = ConnectionUtils.getConnection();
         try (PreparedStatement stmt = conn.prepareStatement(SELECT_BY_ID)) {
             stmt.setInt(1, id);
@@ -109,16 +104,14 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
             if (evaluation.getGrades() != null) {
                 for (Grade grade : evaluation.getGrades()) {
                     grade.setEvaluation(evaluation);
-                    gradeMapper.createWithConnection(grade, conn, false);
+                    gradeMapper.createWithConnection(grade, conn);
                 }
             }
 
-            try { conn.commit(); } catch (SQLException ex) { logger.error("Commit failed: {}", ex.getMessage()); }
             addToCache(evaluation);
             return evaluation;
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try { conn.rollback(); } catch (SQLException e) { logger.error("Rollback failed: {}", e.getMessage()); }
         }
         return null;
     }
@@ -139,14 +132,12 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
             stmt.setInt(5, evaluation.getId());
 
             int affected = stmt.executeUpdate();
-            try { conn.commit(); } catch (SQLException ex) { logger.error("Commit failed: {}", ex.getMessage()); }
             if (affected > 0) {
                 addToCache(evaluation);
                 return true;
             }
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try { conn.rollback(); } catch (SQLException e) { logger.error("Rollback failed: {}", e.getMessage()); }
         }
         return false;
     }
@@ -170,7 +161,6 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
             try (PreparedStatement stmt = conn.prepareStatement(DELETE)) {
                 stmt.setInt(1, id);
                 int affected = stmt.executeUpdate();
-                try { conn.commit(); } catch (SQLException ex) { logger.error("Commit failed: {}", ex.getMessage()); }
                 if (affected > 0) {
                     removeFromCache(id);
                     return true;
@@ -178,7 +168,6 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
             }
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try { conn.rollback(); } catch (SQLException e) { logger.error("Rollback failed: {}", e.getMessage()); }
         }
         return false;
     }
