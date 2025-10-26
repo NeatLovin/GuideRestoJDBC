@@ -9,8 +9,8 @@ import ch.hearc.ig.guideresto.persistence.ConnectionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Date;
 
 public class EvaluationService {
     private static final Logger logger = LogManager.getLogger();
@@ -19,28 +19,34 @@ public class EvaluationService {
     private final CompleteEvaluationMapper completeEvaluationMapper = new CompleteEvaluationMapper();
 
     public BasicEvaluation addBasicEvaluation(Restaurant restaurant, boolean like, String ipAddress) {
-        BasicEvaluation eval = new BasicEvaluation(null, new java.util.Date(), restaurant, like, ipAddress);
-        Connection conn = ConnectionUtils.getConnection();
         try {
+            BasicEvaluation eval = new BasicEvaluation(null, new Date(), restaurant, like, ipAddress);
             BasicEvaluation created = basicEvaluationMapper.create(eval);
-            conn.commit();
+            ConnectionUtils.commit();
             return created;
         } catch (SQLException e) {
-            logger.error("Commit failed: {}", e.getMessage());
-            try { conn.rollback(); } catch (SQLException ex) { logger.error("Rollback failed: {}", ex.getMessage()); }
+            logger.error("Failed to create basic evaluation: {}", e.getMessage(), e);
+            try {
+                ConnectionUtils.rollback();
+            } catch (SQLException ex) {
+                logger.error("Rollback failed: {}", ex.getMessage(), ex);
+            }
             return null;
         }
     }
 
     public CompleteEvaluation createCompleteEvaluation(CompleteEvaluation evaluation) {
-        Connection conn = ConnectionUtils.getConnection();
         try {
             CompleteEvaluation created = completeEvaluationMapper.create(evaluation);
-            conn.commit();
+            ConnectionUtils.commit();
             return created;
         } catch (SQLException e) {
-            logger.error("Commit failed: {}", e.getMessage());
-            try { conn.rollback(); } catch (SQLException ex) { logger.error("Rollback failed: {}", ex.getMessage()); }
+            logger.error("Failed to create complete evaluation: {}", e.getMessage(), e);
+            try {
+                ConnectionUtils.rollback();
+            } catch (SQLException ex) {
+                logger.error("Rollback failed: {}", ex.getMessage(), ex);
+            }
             return null;
         }
     }

@@ -11,7 +11,7 @@ import java.util.ResourceBundle;
 
 /**
  * Provide helper methods to deal with database connections.
- * Ideally, this should also manage connection pools in a bigger application.
+ * Uses ThreadLocal to manage one connection per thread.
  *
  * @author arnaud.geiser
  * @author alain.matile
@@ -20,39 +20,64 @@ public class ConnectionUtils {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private static Connection connection;
+    // ThreadLocal pour gérer une connexion par thread
+    private static final ThreadLocal<Connection> connectionHolder = new ThreadLocal<>();
 
     public static Connection getConnection() {
         try {
-            // Load database credentials from resources/database.properties
-            ResourceBundle dbProps = ResourceBundle.getBundle("database");
-            String url = dbProps.getString("database.url");
-            String username = dbProps.getString("database.username");
-            String password = dbProps.getString("database.password");
+            Connection conn = connectionHolder.get();
 
-            logger.info("Trying to connect to user schema '{}' with JDBC string '{}'", username, url);
+            // Vérifier si la connexion existe et est valide
+            if (conn == null || conn.isClosed()) {
+                // Load database credentials from resources/database.properties
+                ResourceBundle dbProps = ResourceBundle.getBundle("database");
+                String url = dbProps.getString("database.url");
+                String username = dbProps.getString("database.username");
+                String password = dbProps.getString("database.password");
 
-            // Initialize a connection if required
-            if (ConnectionUtils.connection == null || ConnectionUtils.connection.isClosed()) {
-                Connection connection = DriverManager.getConnection(url, username, password);
-                connection.setAutoCommit(false);
-                ConnectionUtils.connection = connection;
+                logger.info("Trying to connect to user schema '{}' with JDBC string '{}'", username, url);
+
+                conn = DriverManager.getConnection(url, username, password);
+                conn.setAutoCommit(false);
+                connectionHolder.set(conn);
             }
+
+            return conn;
         } catch (SQLException ex) {
             logger.error(ex.getMessage(), ex);
+            throw new RuntimeException("Failed to get database connection", ex);
         } catch (MissingResourceException ex) {
             logger.error(ex.getMessage(), ex);
+            throw new RuntimeException("Database configuration not found", ex);
         }
-        return ConnectionUtils.connection;
     }
 
     public static void closeConnection() {
-        try {
-            if (ConnectionUtils.connection != null && !ConnectionUtils.connection.isClosed()) {
-                ConnectionUtils.connection.close();
+        Connection conn = connectionHolder.get();
+        if (conn != null) {
+            try {
+                if (!conn.isClosed()) {
+                    conn.close();
+                }
+            } catch (SQLException e) {
+                logger.error("Error closing connection: {}", e.getMessage(), e);
+            } finally {
+                connectionHolder.remove();
             }
-        } catch (SQLException e) {
-            logger.error(e.getMessage(), e);
+        }
+    }
+
+    public static void commit() throws SQLException {
+        Connection conn = connectionHolder.get();
+        if (conn != null && !conn.isClosed()) {
+            conn.commit();
+        }
+    }
+
+    public static void rollback() throws SQLException {
+        Connection conn = connectionHolder.get();
+        if (conn != null && !conn.isClosed()) {
+            conn.rollback();
         }
     }
 }
