@@ -12,4 +12,3 @@ public class RestaurantTypeService {
         return typeMapper.findAll();
     }
 }
-

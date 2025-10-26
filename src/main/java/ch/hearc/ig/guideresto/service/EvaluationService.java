@@ -22,9 +22,9 @@ public class EvaluationService {
         BasicEvaluation eval = new BasicEvaluation(null, new java.util.Date(), restaurant, like, ipAddress);
         Connection conn = ConnectionUtils.getConnection();
         try {
-            basicEvaluationMapper.create(eval);
+            BasicEvaluation created = basicEvaluationMapper.create(eval);
             conn.commit();
-            return eval;
+            return created;
         } catch (SQLException e) {
             logger.error("Commit failed: {}", e.getMessage());
             try { conn.rollback(); } catch (SQLException ex) { logger.error("Rollback failed: {}", ex.getMessage()); }

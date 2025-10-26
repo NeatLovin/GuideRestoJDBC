@@ -21,9 +21,14 @@ public class CityService {
 
     public City create(City city) {
         Connection conn = ConnectionUtils.getConnection();
-        City created = cityMapper.create(city);
-        try { conn.commit(); } catch (SQLException e) { logger.error("Commit failed: {}", e.getMessage()); }
-        return created;
+        try {
+            City created = cityMapper.create(city);
+            conn.commit();
+            return created;
+        } catch (SQLException e) {
+            logger.error("Commit failed: {}", e.getMessage());
+            try { conn.rollback(); } catch (SQLException ex) { logger.error("Rollback failed: {}", ex.getMessage()); }
+            return null;
+        }
     }
 }
-

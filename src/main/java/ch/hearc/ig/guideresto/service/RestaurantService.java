@@ -44,9 +44,15 @@ public class RestaurantService {
      */
     public boolean update(Restaurant restaurant) {
         Connection conn = ConnectionUtils.getConnection();
-        boolean ok = restaurantMapper.update(restaurant);
-        try { conn.commit(); } catch (SQLException e) { logger.error("Commit failed: {}", e.getMessage()); }
-        return ok;
+        try {
+            boolean ok = restaurantMapper.update(restaurant);
+            conn.commit();
+            return ok;
+        } catch (SQLException e) {
+            logger.error("Commit failed: {}", e.getMessage());
+            try { conn.rollback(); } catch (SQLException ex) { logger.error("Rollback failed: {}", ex.getMessage()); }
+            return false;
+        }
     }
 
     /**
@@ -63,9 +69,14 @@ public class RestaurantService {
      */
     public boolean delete(Restaurant restaurant) {
         Connection conn = ConnectionUtils.getConnection();
-        boolean ok = restaurantMapper.delete(restaurant);
-        try { conn.commit(); } catch (SQLException e) { logger.error("Commit failed: {}", e.getMessage()); }
-        return ok;
+        try {
+            boolean ok = restaurantMapper.delete(restaurant);
+            conn.commit();
+            return ok;
+        } catch (SQLException e) {
+            logger.error("Commit failed: {}", e.getMessage());
+            try { conn.rollback(); } catch (SQLException ex) { logger.error("Rollback failed: {}", ex.getMessage()); }
+            return false;
+        }
     }
 }
-
