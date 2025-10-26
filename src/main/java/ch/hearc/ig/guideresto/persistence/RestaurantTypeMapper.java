@@ -23,12 +23,8 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
 
     @Override
     public RestaurantType findById(int id) {
-        if (identityMap().containsKey(id)) {
-            return identityMap().get(id);
-        }
-        if (cache.containsKey(id)) {
-            return cache.get(id);
-        }
+        RestaurantType cached = findInCache(id);
+        if (cached != null) return cached;
 
         Connection connection = ConnectionUtils.getConnection();
         try (PreparedStatement stmt = connection.prepareStatement(SELECT_BY_ID)) {
@@ -92,27 +88,15 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
             stmt.setString(2, object.getDescription());
 
             stmt.executeUpdate();
-            // Récupérer l'id généré par la séquence
             Integer id = getSequenceValue();
             if (id != null && id > 0) {
                 object.setId(id);
                 addToCache(object);
             }
 
-            try {
-                connection.commit();
-            } catch (SQLException ex) {
-                logger.error("Commit failed: {}", ex.getMessage());
-            }
-
             return object;
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try {
-                connection.rollback();
-            } catch (SQLException e) {
-                logger.error("Rollback failed: {}", e.getMessage());
-            }
         }
         return null;
     }
@@ -130,23 +114,12 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
             stmt.setInt(3, object.getId());
 
             int affected = stmt.executeUpdate();
-            try {
-                connection.commit();
-            } catch (SQLException ex) {
-                logger.error("Commit failed: {}", ex.getMessage());
-            }
-
             if (affected > 0) {
                 addToCache(object);
                 return true;
             }
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try {
-                connection.rollback();
-            } catch (SQLException e) {
-                logger.error("Rollback failed: {}", e.getMessage());
-            }
         }
         return false;
     }
@@ -166,23 +139,12 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
             stmt.setInt(1, id);
 
             int affected = stmt.executeUpdate();
-            try {
-                connection.commit();
-            } catch (SQLException ex) {
-                logger.error("Commit failed: {}", ex.getMessage());
-            }
-
             if (affected > 0) {
                 removeFromCache(id);
                 return true;
             }
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try {
-                connection.rollback();
-            } catch (SQLException e) {
-                logger.error("Rollback failed: {}", e.getMessage());
-            }
         }
         return false;
     }

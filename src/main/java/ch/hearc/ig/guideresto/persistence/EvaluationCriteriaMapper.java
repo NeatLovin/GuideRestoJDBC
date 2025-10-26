@@ -22,28 +22,18 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
     private static final String SEQUENCE_QUERY = "SELECT SEQ_CRITERES_EVALUATION.CURRVAL FROM DUAL";
 
     @Override
-    protected String getSequenceQuery() {
-        return SEQUENCE_QUERY;
-    }
+    protected String getSequenceQuery() { return SEQUENCE_QUERY; }
 
     @Override
-    protected String getExistsQuery() {
-        return EXISTS_QUERY;
-    }
+    protected String getExistsQuery() { return EXISTS_QUERY; }
 
     @Override
-    protected String getCountQuery() {
-        return COUNT_QUERY;
-    }
+    protected String getCountQuery() { return COUNT_QUERY; }
 
     @Override
     public EvaluationCriteria findById(int id) {
-        if (identityMap().containsKey(id)) {
-            return identityMap().get(id);
-        }
-        if (cache.containsKey(id)) {
-            return cache.get(id);
-        }
+        EvaluationCriteria cached = findInCache(id);
+        if (cached != null) return cached;
 
         Connection connection = ConnectionUtils.getConnection();
         try (PreparedStatement stmt = connection.prepareStatement(SELECT_BY_ID)) {
@@ -88,9 +78,7 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
 
     @Override
     public EvaluationCriteria create(EvaluationCriteria object) {
-        if (object == null) {
-            return null;
-        }
+        if (object == null) return null;
 
         Connection connection = ConnectionUtils.getConnection();
         try (PreparedStatement stmt = connection.prepareStatement(INSERT)) {
@@ -103,28 +91,16 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
                 object.setId(id);
                 addToCache(object);
             }
-            try {
-                connection.commit();
-            } catch (SQLException ex) {
-                logger.error("Commit failed: {}", ex.getMessage());
-            }
             return object;
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try {
-                connection.rollback();
-            } catch (SQLException e) {
-                logger.error("Rollback failed: {}", e.getMessage());
-            }
         }
         return null;
     }
 
     @Override
     public boolean update(EvaluationCriteria object) {
-        if (object == null || object.getId() == null) {
-            return false;
-        }
+        if (object == null || object.getId() == null) return false;
 
         Connection connection = ConnectionUtils.getConnection();
         try (PreparedStatement stmt = connection.prepareStatement(UPDATE)) {
@@ -133,32 +109,19 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
             stmt.setInt(3, object.getId());
 
             int affected = stmt.executeUpdate();
-            try {
-                connection.commit();
-            } catch (SQLException ex) {
-                logger.error("Commit failed: {}", ex.getMessage());
-            }
-
             if (affected > 0) {
                 addToCache(object);
                 return true;
             }
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try {
-                connection.rollback();
-            } catch (SQLException e) {
-                logger.error("Rollback failed: {}", e.getMessage());
-            }
         }
         return false;
     }
 
     @Override
     public boolean delete(EvaluationCriteria object) {
-        if (object == null || object.getId() == null) {
-            return false;
-        }
+        if (object == null || object.getId() == null) return false;
         return deleteById(object.getId());
     }
 
@@ -169,35 +132,19 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
             stmt.setInt(1, id);
 
             int affected = stmt.executeUpdate();
-            try {
-                connection.commit();
-            } catch (SQLException ex) {
-                logger.error("Commit failed: {}", ex.getMessage());
-            }
-
             if (affected > 0) {
                 removeFromCache(id);
                 return true;
             }
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try {
-                connection.rollback();
-            } catch (SQLException e) {
-                logger.error("Rollback failed: {}", e.getMessage());
-            }
         }
         return false;
     }
 
-    /**
-     * Recherche des critères dont le nom contient la chaîne passée (insensible à la casse)
-     */
     public Set<EvaluationCriteria> findByName(String namePart) {
         Set<EvaluationCriteria> result = new LinkedHashSet<>();
-        if (namePart == null) {
-            return result;
-        }
+        if (namePart == null) return result;
 
         Connection connection = ConnectionUtils.getConnection();
         String sql = "SELECT numero, nom, description FROM CRITERES_EVALUATION WHERE UPPER(nom) LIKE ? ORDER BY nom";

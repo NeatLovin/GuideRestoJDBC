@@ -37,12 +37,8 @@ public class GradeMapper extends AbstractMapper<Grade> {
     // CRUD de base
     @Override
     public Grade findById(int id) {
-        if (identityMap().containsKey(id)) {
-            return identityMap().get(id);
-        }
-        if (cache.containsKey(id)) {
-            return cache.get(id);
-        }
+        Grade cached = findInCache(id);
+        if (cached != null) return cached;
         Connection connection = ConnectionUtils.getConnection();
         try (PreparedStatement stmt = connection.prepareStatement(SELECT_BY_ID)) {
             stmt.setInt(1, id);
@@ -85,13 +81,11 @@ public class GradeMapper extends AbstractMapper<Grade> {
     @Override
     public Grade create(Grade object) {
         Connection connection = ConnectionUtils.getConnection();
-        return createWithConnection(object, connection, true);
+        return createWithConnection(object, connection);
     }
-    
-    public Grade createWithConnection(Grade object, Connection connection, boolean doCommit) {
-        if (object == null) {
-            return null;
-        }
+
+    public Grade createWithConnection(Grade object, Connection connection) {
+        if (object == null) return null;
         if (object.getGrade() == null) {
             logger.error("Grade.create: 'note' cannot be null");
             return null;
@@ -114,22 +108,16 @@ public class GradeMapper extends AbstractMapper<Grade> {
                 object.setId(id);
                 addToCache(object);
             }
-            if (doCommit) {
-                try { connection.commit(); } catch (SQLException ex) { logger.error("Commit failed: {}", ex.getMessage()); }
-            }
             return object;
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try { connection.rollback(); } catch (SQLException e) { logger.error("Rollback failed: {}", e.getMessage()); }
         }
         return null;
     }
 
     @Override
     public boolean update(Grade object) {
-        if (object == null || object.getId() == null) {
-            return false;
-        }
+        if (object == null || object.getId() == null) return false;
         if (object.getGrade() == null) {
             logger.error("Grade.update: 'note' cannot be null");
             return false;
@@ -148,23 +136,19 @@ public class GradeMapper extends AbstractMapper<Grade> {
             stmt.setInt(4, object.getId());
 
             int affected = stmt.executeUpdate();
-            try { connection.commit(); } catch (SQLException ex) { logger.error("Commit failed: {}", ex.getMessage()); }
             if (affected > 0) {
                 addToCache(object);
                 return true;
             }
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try { connection.rollback(); } catch (SQLException e) { logger.error("Rollback failed: {}", e.getMessage()); }
         }
         return false;
     }
 
     @Override
     public boolean delete(Grade object) {
-        if (object == null || object.getId() == null) {
-            return false;
-        }
+        if (object == null || object.getId() == null) return false;
         return deleteById(object.getId());
     }
 
@@ -174,14 +158,12 @@ public class GradeMapper extends AbstractMapper<Grade> {
         try (PreparedStatement stmt = connection.prepareStatement(DELETE)) {
             stmt.setInt(1, id);
             int affected = stmt.executeUpdate();
-            try { connection.commit(); } catch (SQLException ex) { logger.error("Commit failed: {}", ex.getMessage()); }
             if (affected > 0) {
                 removeFromCache(id);
                 return true;
             }
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try { connection.rollback(); } catch (SQLException e) { logger.error("Rollback failed: {}", e.getMessage()); }
         }
         return false;
     }

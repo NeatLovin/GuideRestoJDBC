@@ -22,29 +22,16 @@ public class CityMapper extends AbstractMapper<City> {
     private static final String SEQUENCE_QUERY = "SELECT SEQ_VILLES.CURRVAL FROM DUAL";
 
     @Override
-    protected String getSequenceQuery() {
-        return SEQUENCE_QUERY;
-    }
-
+    protected String getSequenceQuery() { return SEQUENCE_QUERY; }
     @Override
-    protected String getExistsQuery() {
-        return EXISTS_QUERY;
-    }
-
+    protected String getExistsQuery() { return EXISTS_QUERY; }
     @Override
-    protected String getCountQuery() {
-        return COUNT_QUERY;
-    }
+    protected String getCountQuery() { return COUNT_QUERY; }
 
     @Override
     public City findById(int id) {
-        // Identity Map puis cache local
-        if (identityMap().containsKey(id)) {
-            return identityMap().get(id);
-        }
-        if (cache.containsKey(id)) {
-            return cache.get(id);
-        }
+        City cached = findInCache(id);
+        if (cached != null) return cached;
 
         Connection connection = ConnectionUtils.getConnection();
         try (PreparedStatement stmt = connection.prepareStatement(SELECT_BY_ID)) {
@@ -64,11 +51,9 @@ public class CityMapper extends AbstractMapper<City> {
 
     @Override
     public Set<City> findAll() {
-        // Retourner identity map si rempli
         if (!identityMap().isEmpty()) {
             return new LinkedHashSet<>(identityMap().values());
         }
-        // Retourner cache si rempli
         if (!cache.isEmpty()) {
             return new LinkedHashSet<>(cache.values());
         }
@@ -91,9 +76,7 @@ public class CityMapper extends AbstractMapper<City> {
 
     @Override
     public City create(City object) {
-        if (object == null) {
-            return null;
-        }
+        if (object == null) return null;
 
         Connection connection = ConnectionUtils.getConnection();
         try (PreparedStatement stmt = connection.prepareStatement(INSERT)) {
@@ -101,36 +84,21 @@ public class CityMapper extends AbstractMapper<City> {
             stmt.setString(2, object.getCityName());
 
             stmt.executeUpdate();
-            // Récupérer l'id généré par la séquence via CURRVAL
             Integer id = getSequenceValue();
             if (id != null && id > 0) {
                 object.setId(id);
                 addToCache(object);
             }
-            // commit la transaction
-            try {
-                connection.commit();
-            } catch (SQLException ex) {
-                logger.error("Commit failed: {}", ex.getMessage());
-            }
-
             return object;
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try {
-                connection.rollback();
-            } catch (SQLException e) {
-                logger.error("Rollback failed: {}", e.getMessage());
-            }
         }
         return null;
     }
 
     @Override
     public boolean update(City object) {
-        if (object == null || object.getId() == null) {
-            return false;
-        }
+        if (object == null || object.getId() == null) return false;
 
         Connection connection = ConnectionUtils.getConnection();
         try (PreparedStatement stmt = connection.prepareStatement(UPDATE)) {
@@ -139,32 +107,19 @@ public class CityMapper extends AbstractMapper<City> {
             stmt.setInt(3, object.getId());
 
             int affected = stmt.executeUpdate();
-            try {
-                connection.commit();
-            } catch (SQLException ex) {
-                logger.error("Commit failed: {}", ex.getMessage());
-            }
-
             if (affected > 0) {
                 addToCache(object);
                 return true;
             }
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try {
-                connection.rollback();
-            } catch (SQLException e) {
-                logger.error("Rollback failed: {}", e.getMessage());
-            }
         }
         return false;
     }
 
     @Override
     public boolean delete(City object) {
-        if (object == null || object.getId() == null) {
-            return false;
-        }
+        if (object == null || object.getId() == null) return false;
         return deleteById(object.getId());
     }
 
@@ -175,35 +130,19 @@ public class CityMapper extends AbstractMapper<City> {
             stmt.setInt(1, id);
 
             int affected = stmt.executeUpdate();
-            try {
-                connection.commit();
-            } catch (SQLException ex) {
-                logger.error("Commit failed: {}", ex.getMessage());
-            }
-
             if (affected > 0) {
                 removeFromCache(id);
                 return true;
             }
         } catch (SQLException ex) {
             logger.error("SQLException: {}", ex.getMessage());
-            try {
-                connection.rollback();
-            } catch (SQLException e) {
-                logger.error("Rollback failed: {}", e.getMessage());
-            }
         }
         return false;
     }
 
-    /**
-     * Recherche des villes dont le code postal correspond exactement
-     */
     public Set<City> findByZipCode(String zipCode) {
         Set<City> result = new LinkedHashSet<>();
-        if (zipCode == null) {
-            return result;
-        }
+        if (zipCode == null) return result;
 
         Connection connection = ConnectionUtils.getConnection();
         String sql = "SELECT numero, code_postal, nom_ville FROM VILLES WHERE code_postal = ? ORDER BY nom_ville";
@@ -222,14 +161,9 @@ public class CityMapper extends AbstractMapper<City> {
         return result;
     }
 
-    /**
-     * Recherche des villes dont le nom contient la chaîne passée (insensible à la casse)
-     */
     public Set<City> findByName(String namePart) {
         Set<City> result = new LinkedHashSet<>();
-        if (namePart == null) {
-            return result;
-        }
+        if (namePart == null) return result;
 
         Connection connection = ConnectionUtils.getConnection();
         String sql = "SELECT numero, code_postal, nom_ville FROM VILLES WHERE UPPER(nom_ville) LIKE ? ORDER BY nom_ville";
@@ -252,8 +186,6 @@ public class CityMapper extends AbstractMapper<City> {
         Integer id = rs.getInt("numero");
         String zip = rs.getString("code_postal");
         String name = rs.getString("nom_ville");
-
-        City city = new City(id, zip, name);
-        return city;
+        return new City(id, zip, name);
     }
 }

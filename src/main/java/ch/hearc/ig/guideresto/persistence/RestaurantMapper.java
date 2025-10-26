@@ -27,12 +27,8 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
 
     @Override
     public Restaurant findById(int id) {
-        if (identityMap().containsKey(id)) {
-            return identityMap().get(id);
-        }
-        if (cache.containsKey(id)) {
-            return cache.get(id);
-        }
+        Restaurant inCache = findInCache(id);
+        if (inCache != null) return inCache;
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(SELECT_BY_ID)) {
@@ -147,7 +143,6 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
                 try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         restaurant.setId(generatedKeys.getInt(1));
-                        conn.commit();
                         addToCache(restaurant);
                         logger.info("Restaurant créé avec l'ID: {}", restaurant.getId());
                         return restaurant;
@@ -156,11 +151,6 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             }
         } catch (SQLException ex) {
             logger.error("Erreur lors de la création du restaurant: {}", ex.getMessage());
-            try {
-                conn.rollback();
-            } catch (SQLException e) {
-                logger.error("Erreur lors du rollback: {}", e.getMessage());
-            }
         }
         return null;
     }
@@ -181,7 +171,6 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             stmt.setInt(7, restaurant.getId());
 
             int affectedRows = stmt.executeUpdate();
-            conn.commit();
 
             if (affectedRows > 0) {
                 addToCache(restaurant);
@@ -190,11 +179,6 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             }
         } catch (SQLException ex) {
             logger.error("Erreur lors de la mise à jour du restaurant: {}", ex.getMessage());
-            try {
-                conn.rollback();
-            } catch (SQLException e) {
-                logger.error("Erreur lors du rollback: {}", e.getMessage());
-            }
         }
         return false;
     }
@@ -237,8 +221,6 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
                 stmtRestaurant.setInt(1, id);
                 int affectedRows = stmtRestaurant.executeUpdate();
 
-                conn.commit();
-
                 if (affectedRows > 0) {
                     removeFromCache(id);
                     logger.info("Restaurant supprimé: {}", id);
@@ -247,11 +229,6 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             }
         } catch (SQLException ex) {
             logger.error("Erreur lors de la suppression du restaurant: {}", ex.getMessage());
-            try {
-                conn.rollback();
-            } catch (SQLException e) {
-                logger.error("Erreur lors du rollback: {}", e.getMessage());
-            }
         }
         return false;
     }
