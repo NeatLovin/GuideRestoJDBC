@@ -37,6 +37,9 @@ public class GradeMapper extends AbstractMapper<Grade> {
     // CRUD de base
     @Override
     public Grade findById(int id) {
+        if (identityMap().containsKey(id)) {
+            return identityMap().get(id);
+        }
         if (cache.containsKey(id)) {
             return cache.get(id);
         }
@@ -58,7 +61,10 @@ public class GradeMapper extends AbstractMapper<Grade> {
 
     @Override
     public Set<Grade> findAll() {
-        if (!isCacheEmpty()) {
+        if (!identityMap().isEmpty()) {
+            return new LinkedHashSet<>(identityMap().values());
+        }
+        if (!cache.isEmpty()) {
             return new LinkedHashSet<>(cache.values());
         }
         Set<Grade> result = new LinkedHashSet<>();

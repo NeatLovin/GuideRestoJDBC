@@ -38,7 +38,10 @@ public class CityMapper extends AbstractMapper<City> {
 
     @Override
     public City findById(int id) {
-        // Vérifier dans le cache
+        // Identity Map puis cache local
+        if (identityMap().containsKey(id)) {
+            return identityMap().get(id);
+        }
         if (cache.containsKey(id)) {
             return cache.get(id);
         }
@@ -61,8 +64,12 @@ public class CityMapper extends AbstractMapper<City> {
 
     @Override
     public Set<City> findAll() {
+        // Retourner identity map si rempli
+        if (!identityMap().isEmpty()) {
+            return new LinkedHashSet<>(identityMap().values());
+        }
         // Retourner cache si rempli
-        if (!isCacheEmpty()) {
+        if (!cache.isEmpty()) {
             return new LinkedHashSet<>(cache.values());
         }
 
@@ -93,7 +100,7 @@ public class CityMapper extends AbstractMapper<City> {
             stmt.setString(1, object.getZipCode());
             stmt.setString(2, object.getCityName());
 
-            int affected = stmt.executeUpdate();
+            stmt.executeUpdate();
             // Récupérer l'id généré par la séquence via CURRVAL
             Integer id = getSequenceValue();
             if (id != null && id > 0) {
@@ -250,4 +257,3 @@ public class CityMapper extends AbstractMapper<City> {
         return city;
     }
 }
-

@@ -1,6 +1,5 @@
 package ch.hearc.ig.guideresto.persistence;
 
-import ch.hearc.ig.guideresto.business.Restaurant;
 import ch.hearc.ig.guideresto.business.RestaurantType;
 
 import java.sql.Connection;
@@ -24,7 +23,9 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
 
     @Override
     public RestaurantType findById(int id) {
-        // Vérifier dans le cache
+        if (identityMap().containsKey(id)) {
+            return identityMap().get(id);
+        }
         if (cache.containsKey(id)) {
             return cache.get(id);
         }
@@ -48,8 +49,10 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
 
     @Override
     public Set<RestaurantType> findAll() {
-        // Retourner cache si rempli
-        if (!isCacheEmpty()) {
+        if (!identityMap().isEmpty()) {
+            return new LinkedHashSet<>(identityMap().values());
+        }
+        if (!cache.isEmpty()) {
             return new LinkedHashSet<>(cache.values());
         }
 
@@ -88,7 +91,7 @@ public class RestaurantTypeMapper extends AbstractMapper<RestaurantType> {
             stmt.setString(1, object.getLabel());
             stmt.setString(2, object.getDescription());
 
-            int affected = stmt.executeUpdate();
+            stmt.executeUpdate();
             // Récupérer l'id généré par la séquence
             Integer id = getSequenceValue();
             if (id != null && id > 0) {

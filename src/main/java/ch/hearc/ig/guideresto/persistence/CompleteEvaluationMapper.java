@@ -35,6 +35,10 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
 
     @Override
     public CompleteEvaluation findById(int id) {
+        // Identity Map d'abord
+        if (identityMap().containsKey(id)) {
+            return identityMap().get(id);
+        }
         if (cache.containsKey(id)) {
             return cache.get(id);
         }
@@ -58,7 +62,10 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
 
     @Override
     public Set<CompleteEvaluation> findAll() {
-        if (!isCacheEmpty()) {
+        if (!identityMap().isEmpty()) {
+            return new LinkedHashSet<>(identityMap().values());
+        }
+        if (!cache.isEmpty()) {
             return new LinkedHashSet<>(cache.values());
         }
         Set<CompleteEvaluation> result = new LinkedHashSet<>();
@@ -98,7 +105,7 @@ public class CompleteEvaluationMapper extends AbstractMapper<CompleteEvaluation>
                 evaluation.setId(id);
             }
 
-            // Insérer les notes via GradeMapper dans la même transaction (pas de commit intermédiaire)
+            // Insérer les notes via GradeMapper dans la même transaction
             if (evaluation.getGrades() != null) {
                 for (Grade grade : evaluation.getGrades()) {
                     grade.setEvaluation(evaluation);

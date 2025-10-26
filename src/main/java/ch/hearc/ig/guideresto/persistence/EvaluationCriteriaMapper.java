@@ -38,6 +38,9 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
 
     @Override
     public EvaluationCriteria findById(int id) {
+        if (identityMap().containsKey(id)) {
+            return identityMap().get(id);
+        }
         if (cache.containsKey(id)) {
             return cache.get(id);
         }
@@ -60,7 +63,10 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
 
     @Override
     public Set<EvaluationCriteria> findAll() {
-        if (!isCacheEmpty()) {
+        if (!identityMap().isEmpty()) {
+            return new LinkedHashSet<>(identityMap().values());
+        }
+        if (!cache.isEmpty()) {
             return new LinkedHashSet<>(cache.values());
         }
 
@@ -91,7 +97,7 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
             stmt.setString(1, object.getName());
             stmt.setString(2, object.getDescription());
 
-            int affected = stmt.executeUpdate();
+            stmt.executeUpdate();
             Integer id = getSequenceValue();
             if (id != null && id > 0) {
                 object.setId(id);
@@ -214,9 +220,6 @@ public class EvaluationCriteriaMapper extends AbstractMapper<EvaluationCriteria>
         Integer id = rs.getInt("numero");
         String name = rs.getString("nom");
         String description = rs.getString("description");
-
-        EvaluationCriteria ec = new EvaluationCriteria(id, name, description);
-        return ec;
+        return new EvaluationCriteria(id, name, description);
     }
 }
-

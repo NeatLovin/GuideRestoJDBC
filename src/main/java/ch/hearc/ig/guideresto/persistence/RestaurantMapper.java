@@ -12,7 +12,7 @@ import static ch.hearc.ig.guideresto.persistence.ConnectionUtils.getConnection;
 
 public class RestaurantMapper extends AbstractMapper<Restaurant> {
 
-    private static final String SELECT_BY_ID = "SELECT fk_vill, fk_type, nom, adresse, description, site_web FROM RESTAURANTS WHERE numero = ?";
+    private static final String SELECT_BY_ID = "SELECT numero, fk_vill, fk_type, nom, adresse, description, site_web FROM RESTAURANTS WHERE numero = ?";
     private static final String SELECT_ALL = "SELECT numero, fk_vill, fk_type, nom, adresse, description, site_web FROM RESTAURANTS ORDER BY nom";
     private static final String INSERT = "INSERT INTO RESTAURANTS (fk_vill, fk_type, nom, adresse, description, site_web) VALUES (?, ?, ?, ?, ?, ?)";
     private static final String UPDATE = "UPDATE RESTAURANTS SET fk_vill = ?, fk_type = ?, nom = ?, adresse = ?, description = ?, site_web = ? WHERE numero = ?";
@@ -27,6 +27,9 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
 
     @Override
     public Restaurant findById(int id) {
+        if (identityMap().containsKey(id)) {
+            return identityMap().get(id);
+        }
         if (cache.containsKey(id)) {
             return cache.get(id);
         }
@@ -42,7 +45,7 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
                     restaurant.getEvaluations().clear();
                     loadEvaluations(restaurant);
                     loadCompleteEvaluations(restaurant);
-                    cache.put(id, restaurant);
+                    addToCache(restaurant);
                     return restaurant;
                 }
             }
@@ -79,6 +82,9 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
 
     @Override
     public Set<Restaurant> findAll() {
+        if (!identityMap().isEmpty()) {
+            return new LinkedHashSet<>(identityMap().values());
+        }
         Set<Restaurant> restaurants = new LinkedHashSet<>();
         String sql = "SELECT r.NUMERO, r.NOM, r.ADRESSE, r.DESCRIPTION, r.SITE_WEB, " +
                 "r.FK_TYPE, r.FK_VILL, " +
@@ -94,12 +100,13 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
 
             while (rs.next()) {
                 int id = rs.getInt("NUMERO");
-                if (!cache.containsKey(id)) {
+                if (!cache.containsKey(id) && !identityMap().containsKey(id)) {
                     Restaurant restaurant = mapResultSetToRestaurant(rs);
-                    cache.put(id, restaurant);
+                    addToCache(restaurant);
                     restaurants.add(restaurant);
                 } else {
-                    restaurants.add(cache.get(id));
+                    Restaurant cached = identityMap().containsKey(id) ? identityMap().get(id) : cache.get(id);
+                    restaurants.add(cached);
                 }
             }
 
@@ -141,6 +148,7 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
                     if (generatedKeys.next()) {
                         restaurant.setId(generatedKeys.getInt(1));
                         conn.commit();
+                        addToCache(restaurant);
                         logger.info("Restaurant créé avec l'ID: {}", restaurant.getId());
                         return restaurant;
                     }
@@ -176,7 +184,7 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             conn.commit();
 
             if (affectedRows > 0) {
-                cache.put(restaurant.getId(), restaurant);
+                addToCache(restaurant);
                 logger.info("Restaurant mis à jour: {}", restaurant.getId());
                 return true;
             }
@@ -232,7 +240,7 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
                 conn.commit();
 
                 if (affectedRows > 0) {
-                    cache.remove(id);
+                    removeFromCache(id);
                     logger.info("Restaurant supprimé: {}", id);
                     return true;
                 }
@@ -417,7 +425,6 @@ public class RestaurantMapper extends AbstractMapper<Restaurant> {
             logger.error("Erreur lors du chargement des évaluations complètes : {}", e.getMessage());
         }
     }
-
 
 
 
