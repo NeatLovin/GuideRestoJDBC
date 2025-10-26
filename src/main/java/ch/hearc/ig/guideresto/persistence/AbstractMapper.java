@@ -31,6 +31,14 @@ public abstract class AbstractMapper<T extends IBusinessObject> {
     protected abstract String getCountQuery();
 
     /**
+     * Retourne la map d'identité partagée pour ce mapper (scope: thread courant)
+     */
+    @SuppressWarnings("unchecked")
+    protected Map<Integer, T> identityMap() {
+        return (Map<Integer, T>) IdentityMapContext.current().mapFor(this.getClass());
+    }
+
+    /**
      * Vérifie si un objet avec l'ID donné existe.
      * @param id the ID to check
      * @return true si l'objet existe, false sinon
@@ -96,7 +104,7 @@ public abstract class AbstractMapper<T extends IBusinessObject> {
      * @return true si le cache ne contient aucun objet, false sinon
      */
     protected boolean isCacheEmpty() {
-        return cache.isEmpty();
+        return cache.isEmpty() && identityMap().isEmpty();
     }
 
     /**
@@ -104,25 +112,28 @@ public abstract class AbstractMapper<T extends IBusinessObject> {
      */
     protected void resetCache() {
         cache.clear();
+        identityMap().clear();
     }
 
     /**
-     * Ajoute un objet au cache
+     * Ajoute un objet au cache et à l'identity map
      * @param objet l'objet à ajouter
      */
     protected void addToCache(T objet) {
         if (objet != null && objet.getId() != null) {
             cache.put(objet.getId(), objet);
+            identityMap().put(objet.getId(), objet);
         }
     }
 
     /**
-     * Retire un objet du cache
+     * Retire un objet du cache et de l'identity map
      * @param id l'ID de l'objet à retirer du cache
      */
     protected void removeFromCache(Integer id) {
         if (id != null) {
             cache.remove(id);
+            identityMap().remove(id);
         }
     }
 }
